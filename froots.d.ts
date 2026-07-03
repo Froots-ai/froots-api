@@ -38,6 +38,42 @@ export interface PluginCommand {
   callback: () => void | Promise<void>;
 }
 
+/**
+ * A viewport tab contributed by a plugin — it joins the app's top-level
+ * tab switcher next to the built-in Files / Dev / Inbox / Calendar tabs,
+ * and is reachable from ⌘K. Registered views are torn down automatically
+ * when your plugin is disabled; users can hide the tab in
+ * Settings → Plugins without disabling you.
+ */
+export interface PluginViewRegistration {
+  /** View id, unique within your plugin. Lowercase letters, digits, hyphens. */
+  id: string;
+  /** Tab label shown in the switcher and on tabs. */
+  name: string;
+  /**
+   * Optional lucide icon name in kebab-case (e.g. "kanban",
+   * "chart-line" — see lucide.dev/icons). Unknown or missing names fall
+   * back to a puzzle piece.
+   */
+  icon?: string;
+  /**
+   * Whether the view gets a button in the top-level tab switcher.
+   * Default true. Set false for a ⌘K-only surface (like the built-in
+   * History / Artifacts sections): reachable from the launcher and
+   * `openView`, no tab-strip presence.
+   */
+  tab?: boolean;
+  /**
+   * Mount your view into `el`, a plain block-level HTMLElement that fills
+   * the content area (it scrolls; style your own layout inside it).
+   * Called each time the view becomes visible. Return a cleanup function
+   * to run when the view unmounts (navigation away or plugin disable) —
+   * clear timers, disconnect observers, etc. Framework-agnostic: build
+   * DOM by hand or mount your own renderer.
+   */
+  render(el: HTMLElement): void | (() => void);
+}
+
 /** Knowledge-base tree node. */
 export interface PluginKbNode {
   name: string;
@@ -61,6 +97,14 @@ export interface FrootsPluginApi {
   ui: {
     /** Show an ephemeral toast (auto-dismisses). */
     toast(message: string): void;
+    /**
+     * Register a viewport tab (see PluginViewRegistration). Appears in
+     * the top-level switcher while your plugin is enabled. Returns an
+     * unregister function (also runs automatically on disable).
+     */
+    registerView(view: PluginViewRegistration): () => void;
+    /** Navigate to one of your registered views (e.g. from a command). */
+    openView(id: string): void;
   };
 
   kb: {
