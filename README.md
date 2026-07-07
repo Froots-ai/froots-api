@@ -52,6 +52,7 @@ disabled**. You only need `onunload` for resources acquired outside the api.
 | `app.ui.toast(message)` | Ephemeral toast |
 | `app.ui.registerView({id, name, icon, render})` | **Register a viewport TAB** — your own top-level surface next to Files / Dev / Inbox (see below) |
 | `app.ui.openView(id)` | Navigate to one of your registered views |
+| `app.ui.registerSidebarSection({id, title, order, viewport, render})` | **Register a left-sidebar section** — mounts below the built-in nav, optionally scoped to one viewport (see below) |
 | `app.kb.list()` / `read(path)` / `write(path, md)` | The user's knowledge base |
 | `app.settings.load()` / `save(obj)` | Your plugin's `data.json` |
 | `app.events.on(name, cb)` | App events (e.g. `config-changed`) |
@@ -114,6 +115,43 @@ Rules of the road:
   inline error — it won't take down the app, but users will see it.
 - View state you care about should live in your `data.json`
   (`app.settings`) or the KB — the DOM is disposable.
+
+## Sidebar sections — your own panel in the left column
+
+`registerSidebarSection` is the sidebar analogue of `registerView`: instead of
+a whole tab, you contribute a section that mounts **below the built-in
+contextual nav** in the shell's left column. Sections are torn down
+automatically when your plugin is disabled.
+
+```js
+export default {
+  /** @param {FrootsPluginApi} app */
+  async onload(app) {
+    app.ui.registerSidebarSection({
+      id: "quick-links",
+      title: "Quick links",
+      viewport: "tasks",        // only under the Tasks viewport (omit = everywhere)
+      order: 50,                // ascending; default 100
+      render(el) {
+        const btn = el.appendChild(document.createElement("button"));
+        btn.textContent = "Say hi";
+        const onClick = () => app.ui.toast("hi from the sidebar");
+        btn.addEventListener("click", onClick);
+        return () => btn.removeEventListener("click", onClick);
+      },
+    });
+  },
+};
+```
+
+- **Scope it** with `viewport` — one of `"files" | "inbox" | "calendar" |
+  "tasks" | "dev" | "browser" | "comms" | "contacts"`. Omit `viewport` and the
+  section shows under every viewport.
+- **`order`** sorts your section among other plugin sections (ascending,
+  default 100); ties break on registration order.
+- `render(el)` and its cleanup follow the same rules as views — it runs each
+  time the section becomes visible, and the returned function runs on unmount
+  (viewport change or plugin disable).
 
 ## Developing
 

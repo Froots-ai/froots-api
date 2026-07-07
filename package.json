@@ -1,6 +1,6 @@
 {
   "name": "froots-api",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Type definitions for the Froots plugin API. Typings only — the runtime lives in the Froots app.",
   "types": "froots.d.ts",
   "main": "",
