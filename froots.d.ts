@@ -74,6 +74,39 @@ export interface PluginViewRegistration {
   render(el: HTMLElement): void | (() => void);
 }
 
+/**
+ * A left-sidebar section contributed by a plugin — it mounts below the
+ * built-in contextual nav in the shell's left column (the sidebar analogue
+ * of `registerView`). Like a view, the section renders into a plain
+ * HTMLElement the app owns (framework-agnostic, Obsidian-style): build DOM
+ * by hand, or bring your own renderer. Sections are torn down automatically
+ * when your plugin is disabled.
+ */
+export interface PluginSidebarSection {
+  /** Section id, unique within your plugin. Lowercase letters, digits, hyphens. */
+  id: string;
+  /** Optional header label rendered above the section body. */
+  title?: string;
+  /**
+   * Sort order among plugin sidebar sections (ascending). Default 100.
+   * Ties break on registration order.
+   */
+  order?: number;
+  /**
+   * Restrict the section to a single built-in viewport ("files" | "inbox" |
+   * "calendar" | "tasks" | "dev" | "browser" | "comms" | "contacts"). Omit to
+   * show the section under every viewport.
+   */
+  viewport?: string;
+  /**
+   * Mount the section into `el`. Called when the section becomes visible
+   * (its scoped viewport is active, or on every viewport when unscoped).
+   * Return a cleanup function to run when the section unmounts (navigation
+   * away, viewport change, or plugin disable).
+   */
+  render(el: HTMLElement): void | (() => void);
+}
+
 /** Knowledge-base tree node. */
 export interface PluginKbNode {
   name: string;
@@ -105,12 +138,19 @@ export interface FrootsPluginApi {
     registerView(view: PluginViewRegistration): () => void;
     /** Navigate to one of your registered views (e.g. from a command). */
     openView(id: string): void;
+    /**
+     * Register a left-sidebar section (see PluginSidebarSection). It mounts
+     * below the built-in contextual nav while your plugin is enabled, can be
+     * scoped to a single viewport, and is torn down automatically on disable.
+     * Returns an unregister function.
+     */
+    registerSidebarSection(section: PluginSidebarSection): () => void;
   };
 
   kb: {
     /** The global knowledge-base tree. */
     list(): Promise<PluginKbNode[]>;
-    /** Read a KB file by tree path (e.g. "Notes/todo.md"). */
+    /** Read a KB file by tree path (e.g. "kb/Notes/todo.md" or "Notes/todo.md"). */
     read(path: string): Promise<string>;
     /** Write a KB file by tree path (creates parents as needed). */
     write(path: string, content: string): Promise<void>;
@@ -131,8 +171,14 @@ export interface FrootsPluginApi {
     on(name: string, callback: (payload: unknown) => void): () => void;
   };
 
-  /** Track a setInterval id for automatic clearing on disable. */
+  /** Track a setInterval id for automatic clearing on disable. Returns the same id. */
   registerInterval(id: number): number;
+  /** addEventListener with automatic removal on disable (typed for window events). */
+  registerDomEvent<K extends keyof WindowEventMap>(
+    target: Window,
+    event: K,
+    callback: (ev: WindowEventMap[K]) => void,
+  ): void;
   /** addEventListener with automatic removal on disable. */
   registerDomEvent(
     target: EventTarget,
